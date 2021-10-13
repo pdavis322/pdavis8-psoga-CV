@@ -5,32 +5,21 @@ from shi_tomasi import shi_tomasi
 from math import ceil
 
 
-def _fix_negative_rho_in_hesse_normal_form(lines: np.ndarray) -> np.ndarray:
-    lines = lines.copy()
-    neg_rho_mask = lines[..., 0] < 0
-    lines[neg_rho_mask, 0] = - \
-        lines[neg_rho_mask, 0]
-    lines[neg_rho_mask, 1] =  \
-        lines[neg_rho_mask, 1] - np.pi
-    return lines
-
-
 def hough(img):
     lines = cv2.HoughLines(img, 1, np.pi/360, 150)
-    # lines = _fix_negative_rho_in_hesse_normal_form(lines)
 
     # lines = cv2.HoughLinesP(img, 1, np.pi/180, 130, 30, 50)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     slopes = {}
     length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
-    # strong_lines = [lines[0]]
-    # for line in lines[1:]:
-    #     for strong_line in strong_lines:
-    #         print(strong_line)
-    #         strong_rho, strong_theta = strong_line
-    #         rho, theta = line
-    #         if abs(strong_rho - rho) <= 100 and abs(strong_theta - theta) <= 20:
-    #             strong_lines.append(line)
+    strong_lines = [lines[0]]
+    for line in lines[1:]:
+        for strong_line in strong_lines:
+            print(strong_line)
+            strong_rho, strong_theta = strong_line
+            rho, theta = line
+            if abs(strong_rho - rho) <= 100 and abs(strong_theta - theta) <= 20:
+                strong_lines.append(line)
 
     for i, line in enumerate(lines):
         for rho, theta in line:

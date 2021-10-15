@@ -238,9 +238,11 @@ def main(args):
 
     # Final drawing
     draw_segmented_lines(img, orientation_to_lines, length)
-    cv2.imshow('After processing', img)
     if output_path:
+        print(output_path)
         cv2.imwrite(output_path, img)
+
+    cv2.imshow('After processing', img)
 
     while True:
         k = cv2.waitKey(0)

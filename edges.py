@@ -5,7 +5,9 @@ from collections import defaultdict
 from argparse import ArgumentParser
 
 
+# Segment_by_angle_kmeans, intersection, and segmented_intersections with assistance from Stack Overflow
 def segment_by_angle_kmeans(lines, k=2):
+    # Settings from OpenCV docs; default k=2 for horizontal and vertical clustering
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     flags = cv2.KMEANS_RANDOM_CENTERS
     attempts = 10
@@ -32,6 +34,8 @@ def intersection(line1, line2):
         [np.cos(theta2), np.sin(theta2)]
     ])
     b = np.array([[rho1], [rho2]])
+
+    # Solve the matrix equation for [x, y]
     x0, y0 = np.linalg.solve(A, b)
     x0, y0 = int(np.round(x0)), int(np.round(y0))
     return [[x0, y0]]
@@ -60,7 +64,7 @@ def hough_to_rect(rho, theta, length):
     return x1, y1, x2, y2
 
 
-def remove_bad_lines(img, lines, length):
+def filter_lines(img, lines, length):
     strong_lines = [lines[0]]
     filtered_lines = []
 
@@ -172,6 +176,29 @@ def get_corners(orientation_to_lines, length):
     return left + right
 
 
+def draw_lines(img, lines, length):
+    filtered_line_img = img
+    for line in lines:
+        rho, theta = line[0]
+        x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+        cv2.line(filtered_line_img, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
+
+def draw_corners(img, corners):
+    for corner in corners:
+        x, y = corner[0]
+        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
+
+
+def draw_segmented_lines(img, orientation_to_lines, length):
+    for orientation in orientation_to_lines:
+        for segmented_line in orientation_to_lines[orientation]:
+            color = (0, 255, 0) if orientation == 'vert' else (0, 0, 255)
+            rho, theta = segmented_line[0]
+            x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+            cv2.line(img, (x1, y1), (x2, y2), color, 1)
+
+
 def main(args):
     file_path = args.file
     output_path = args.output if args.output else None
@@ -182,32 +209,35 @@ def main(args):
     img = cv2.Canny(img, 200, 250, apertureSize=3)
     cv2.imshow('Canny', img)
 
+    length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
+
     # Hough transform
     lines = cv2.HoughLines(img, 1, np.pi/360, 150)
     if not lines.any():
         print('No lines detected')
         return
-    length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    lines_img = img.copy()
+    draw_lines(lines_img, lines, length)
+    cv2.imshow('Initial lines', lines_img)
 
     # Line processing
-    filtered_lines = remove_bad_lines(img, lines, length)
+    filtered_lines = filter_lines(img, lines, length)
+    filtered_line_img = img.copy()
+    draw_lines(filtered_line_img, filtered_lines, length)
+    cv2.imshow('Filtered lines', filtered_line_img)
+
     orientation_to_lines = process_lines(filtered_lines)
-
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
-    for orientation in orientation_to_lines:
-        for segmented_line in orientation_to_lines[orientation]:
-            color = (0, 255, 0) if orientation == 'vert' else (0, 0, 255)
-            rho, theta = segmented_line[0]
-            x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-            cv2.line(img, (x1, y1), (x2, y2), color, 1)
+    segmented_lines_img = img.copy()
+    draw_segmented_lines(segmented_lines_img, orientation_to_lines, length)
+    cv2.imshow('Lines segmented by orientation', segmented_lines_img)
 
     # Corner processing
     corners = get_corners(orientation_to_lines, length)
-    for corner in corners:
-        x, y = corner[0]
-        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
+    draw_corners(img, corners)
 
+    # Final drawing
+    draw_segmented_lines(img, orientation_to_lines, length)
     cv2.imshow('After processing', img)
     if output_path:
         cv2.imwrite(output_path, img)
@@ -223,6 +253,6 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--file', type=str, help='Chessboard file to process')
     parser.add_argument('--output', type=str,
-                        help='Output file to write final file')
+                        help='Output file location')
     args = parser.parse_args()
     main(args)

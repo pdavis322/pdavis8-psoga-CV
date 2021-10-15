@@ -20,14 +20,19 @@ Next, we transform the polar coordinates to Cartesian coordinates. After obtaini
 ## Images
 Initial image:
 ![Initial](report_images/initial.png)
+
 Canny edge detection:
 ![Canny](report_images/canny.png)
+
 Initial lines:
 ![Initial lines](report_images/initial_lines.png)
+
 Filtered lines:
 ![Filtered](report_images/filtered_lines.png)
+
 Segmented lines:
 ![Segmented](report_images/lines_by_orientation.png)
+
 Corners:
 ![Corners](report_images/final.png)
 

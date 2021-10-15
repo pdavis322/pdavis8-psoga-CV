@@ -44,7 +44,6 @@ def segmented_intersections(lines):
             for line1 in group:
                 for line2 in next_group:
                     intersections.append(intersection(line1, line2))
-
     return intersections
 
 
@@ -61,24 +60,16 @@ def hough_to_rect(rho, theta, length):
     return x1, y1, x2, y2
 
 
-def hough(img):
-    lines = cv2.HoughLines(img, 1, np.pi/360, 150,
-                           #    min_theta=np.pi/12, max_theta=np.pi/3,
-                           #    min_theta=-1*np.pi/3, max_theta=np.pi / 3
-                           )
-
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
-
-    if not lines.any():
-        return img
-
+def remove_bad_lines(img, lines, length):
     strong_lines = [lines[0]]
-    main_lines = []
+    filtered_lines = []
 
     for line in lines:
         rho, theta = line[0]
         x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+
+        # Filter lines by their start and end points assuming that the chessboard
+        #   is in the bottom center of the screen
         if x1 <= 0 and y1 <= 0 and x2 >= 0 and y2 >= 0:
             if x2 < ceil(0.55 * img.shape[1]) or y2 < ceil(0.55*img.shape[0]):
                 continue
@@ -90,22 +81,28 @@ def hough(img):
             continue
 
         s = (y2 - y1) / (x2 - x1)
+
+        # Get rid of lines that are too vertical or horizontal
+        # Need to find a better method since now we can't mark chessboards
+        #   head-on
         if abs(s) > 10 or abs(s) < 0.01:
             continue
 
+        # Only accept lines within a certain angle range; problems similar to those above
         if -1*np.pi/3 <= theta <= np.pi/3 or (-1*np.pi/3 - np.pi/4) <= theta <= (np.pi/3 + np.pi/4):
-            main_lines.append(line)
+            filtered_lines.append(line)
             continue
 
-        main_lines.append(line)
+        filtered_lines.append(line)
 
-    for line in main_lines[1:]:
+    for line in filtered_lines[1:]:
         append_ = True
         for strong_line in strong_lines:
             strong_rho, strong_theta = strong_line[0]
             rho, theta = line[0]
 
-            # DIFF IN RECT COORDS
+            # Filter by difference in x-coordinates to get rid of
+            #   lines that are too close together; needs work
             strong_x1, strong_y1, strong_x2, strong_y2 = hough_to_rect(
                 strong_rho, strong_theta, length)
             x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
@@ -116,12 +113,17 @@ def hough(img):
 
         if append_:
             strong_lines.append(line)
+    return filtered_lines
 
-    segmented = segment_by_angle_kmeans(main_lines)
+
+def process_lines(lines):
+    segmented = segment_by_angle_kmeans(lines)
     orientation_to_lines = {
         'vert': segmented[1],
         'horiz': segmented[0]
     }
+
+    # Get rid of outlier lines within each cluster
     vert_outlier = min(segment_by_angle_kmeans(
         segmented[1], k=2), key=len)[0]
     horiz_outlier = min(segment_by_angle_kmeans(
@@ -139,12 +141,10 @@ def hough(img):
             orientation_to_lines['horiz'] = orientation_to_lines['horiz'][:i] + \
                 orientation_to_lines['horiz'][i+1:]
 
-    for orientation in orientation_to_lines:
-        for segmented_line in orientation_to_lines[orientation]:
-            color = (0, 255, 0) if orientation == 'vert' else (0, 0, 255)
-            rho, theta = segmented_line[0]
-            x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-            cv2.line(img, (x1, y1), (x2, y2), color, 1)
+    return orientation_to_lines
+
+
+def get_corners(orientation_to_lines, length):
 
     def by_midpoint(orientation='vert'):
         def calc(line):
@@ -156,6 +156,8 @@ def hough(img):
 
         return calc
 
+    # Left intersection points = intersection of smallest-x vertical with the extreme horizontal
+    #   lines; right intersection points are symmetric
     left = segmented_intersections(
         [[min(orientation_to_lines['vert'], key=by_midpoint('vert'))], [
             max(orientation_to_lines['horiz'], key=by_midpoint('horiz')),
@@ -167,21 +169,7 @@ def hough(img):
             max(orientation_to_lines['horiz'], key=by_midpoint('horiz'))]
          ])
 
-    for intersection in left + right:
-        x, y = intersection[0]
-        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
-    return img
-# cv2.imwrite('houghlines5.jpg',img)
-
-
-def floodfill(img):
-    im_floodfill = img.copy()
-    h, w = img.shape[: 2]
-    mask = np.zeros((h + 2, w + 2), np.uint8)
-    cv2.floodFill(im_floodfill, mask, (0, 0), 255)
-    im_floodfill_inv = cv2.bitwise_not(im_floodfill)
-    img = img | im_floodfill_inv
-    return img
+    return left + right
 
 
 def main(args):
@@ -191,11 +179,36 @@ def main(args):
     img = cv2.imread(file_path)
     cv2.imshow('Initial', img)
 
-    canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
-    cv2.imshow('Canny', canny_img)
-    img = hough(canny_img)
-    cv2.imshow('Hough', img)
+    img = cv2.Canny(img, 200, 250, apertureSize=3)
+    cv2.imshow('Canny', img)
 
+    # Hough transform
+    lines = cv2.HoughLines(img, 1, np.pi/360, 150)
+    if not lines.any():
+        print('No lines detected')
+        return
+    length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
+
+    # Line processing
+    filtered_lines = remove_bad_lines(img, lines, length)
+    orientation_to_lines = process_lines(filtered_lines)
+
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    for orientation in orientation_to_lines:
+        for segmented_line in orientation_to_lines[orientation]:
+            color = (0, 255, 0) if orientation == 'vert' else (0, 0, 255)
+            rho, theta = segmented_line[0]
+            x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+            cv2.line(img, (x1, y1), (x2, y2), color, 1)
+
+    # Corner processing
+    corners = get_corners(orientation_to_lines, length)
+    for corner in corners:
+        x, y = corner[0]
+        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
+
+    cv2.imshow('After processing', img)
     if output_path:
         cv2.imwrite(output_path, img)
 

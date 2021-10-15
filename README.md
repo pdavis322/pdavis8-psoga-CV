@@ -12,7 +12,7 @@ We used Canny edge detection in order to get the horizontal and vertical lines o
 
 ## Illustrations
 Canny edge 
-[Canny](report_images/canny.png)
+![Canny](report_images/canny.png)
 
 # Part 1 Deliverable
 ## Part A: Database

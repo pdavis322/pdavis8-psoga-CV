@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
-from harris import harris
-from shi_tomasi import shi_tomasi
-from math import ceil, floor
+from math import ceil
 from collections import defaultdict
+from argparse import ArgumentParser
 
 
 def segment_by_angle_kmeans(lines, k=2):
@@ -22,8 +21,6 @@ def segment_by_angle_kmeans(lines, k=2):
     for i, line in enumerate(lines):
         segmented[labels[i]].append(line)
     segmented = list(segmented.values())
-    print(len(labels))
-    print(len(segmented))
     return segmented
 
 
@@ -62,39 +59,6 @@ def hough_to_rect(rho, theta, length):
     y2 = int(y0 - length*(a))
 
     return x1, y1, x2, y2
-
-
-def get_intersection_point(rho1, theta1, rho2, theta2):
-    """Obtain the intersection point of two lines in Hough space.
-
-    This method can be batched
-
-    Args:
-        rho1 (np.ndarray): first line's rho
-        theta1 (np.ndarray): first line's theta
-        rho2 (np.ndarray): second lines's rho
-        theta2 (np.ndarray): second line's theta
-
-    Returns:
-        typing.Tuple[np.ndarray, np.ndarray]: the x and y coordinates of the intersection point(s)
-    """
-    # rho1 = x cos(theta1) + y sin(theta1)
-    # rho2 = x cos(theta2) + y sin(theta2)
-    cos_t1 = np.cos(theta1)
-    cos_t2 = np.cos(theta2)
-    sin_t1 = np.sin(theta1)
-    sin_t2 = np.sin(theta2)
-    try:
-        x = (sin_t1 * rho2 - sin_t2 * rho1) / \
-            (cos_t2 * sin_t1 - cos_t1 * sin_t2)
-    except ZeroDivisionError:
-        x = 0
-    try:
-        y = (cos_t1 * rho2 - cos_t2 * rho1) / \
-            (sin_t2 * cos_t1 - sin_t1 * cos_t2)
-    except ZeroDivisionError:
-        y = 0
-    return x, y
 
 
 def hough(img):
@@ -145,9 +109,6 @@ def hough(img):
             strong_x1, strong_y1, strong_x2, strong_y2 = hough_to_rect(
                 strong_rho, strong_theta, length)
             x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-            print('diff x1: ', abs(strong_x1 - x1))
-            print('diff x2: ', abs(strong_x2 - x2))
-            # if abs(strong_x1 - x1) < 2.5 or abs(strong_x2 - x2) < 4:
             if abs(strong_x2 - x2) < 0.015 * np.sqrt(img.shape[0]**2 + img.shape[1] ** 2):
                 if abs(strong_x2 - x2) < 0.7 * np.sqrt(img.shape[0]):
                     append_ = False
@@ -223,30 +184,32 @@ def floodfill(img):
     return img
 
 
-without_magnus_white_shirt = 'without_magnus_white_shirt.png'
-chessboard = 'chessboard.png'
-boy_vs_man = 'boy_vs_man.png'
-initial_board = 'initial_board.png'
-initial1 = 'initial1.PNG'
-initial3 = 'initial3.png'
-initial4 = 'initial4.png'
-initial2 = 'initial2.png'
+def main(args):
+    file_path = args.file
+    output_path = args.output if args.output else None
 
-img = cv2.imread(initial2)
-cv2.imshow('Initial', img)
+    img = cv2.imread(file_path)
+    cv2.imshow('Initial', img)
+
+    canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
+    cv2.imshow('Canny', canny_img)
+    img = hough(canny_img)
+    cv2.imshow('Hough', img)
+
+    if output_path:
+        cv2.imwrite(output_path, img)
+
+    while True:
+        k = cv2.waitKey(0)
+        if k == 27:
+            cv2.destroyAllWindows()
+            exit()
 
 
-canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
-# canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
-cv2.imshow('Canny', canny_img)
-img = hough(canny_img)
-cv2.imshow('Hough', img)
-# img = cv2.resize(img, (640, 480))
-# img = shi_tomasi(img)
-# cv2.imshow('Corners', img)
-
-while True:
-    k = cv2.waitKey(0)
-    if k == 27:
-        cv2.destroyAllWindows()
-        exit()
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument('--file', type=str, help='Chessboard file to process')
+    parser.add_argument('--output', type=str,
+                        help='Output file to write final file')
+    args = parser.parse_args()
+    main(args)

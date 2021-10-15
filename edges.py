@@ -1,19 +1,54 @@
 import cv2
 import numpy as np
-from numpy.lib.function_base import append
 from harris import harris
 from shi_tomasi import shi_tomasi
-from math import ceil
+from math import ceil, floor
+from collections import defaultdict
 
 
-def _fix_negative_rho_in_hesse_normal_form(lines):
-    lines = lines.copy()
-    neg_rho_mask = lines[..., 0] < 0
-    lines[neg_rho_mask, 0] = - \
-        lines[neg_rho_mask, 0]
-    lines[neg_rho_mask, 1] =  \
-        lines[neg_rho_mask, 1] - np.pi
-    return lines
+def segment_by_angle_kmeans(lines, k=2):
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    flags = cv2.KMEANS_RANDOM_CENTERS
+    attempts = 10
+
+    angles = np.array([line[0][1] for line in lines])
+    pts = np.array([[np.cos(2*angle), np.sin(2*angle)]
+                    for angle in angles], dtype=np.float32)
+
+    labels, _ = cv2.kmeans(pts, k, None, criteria, attempts, flags)[1:]
+    labels = labels.reshape(-1)
+
+    segmented = defaultdict(list)
+    for i, line in enumerate(lines):
+        segmented[labels[i]].append(line)
+    segmented = list(segmented.values())
+    print(len(labels))
+    print(len(segmented))
+    return segmented
+
+
+def intersection(line1, line2):
+    rho1, theta1 = line1[0]
+    rho2, theta2 = line2[0]
+    A = np.array([
+        [np.cos(theta1), np.sin(theta1)],
+        [np.cos(theta2), np.sin(theta2)]
+    ])
+    b = np.array([[rho1], [rho2]])
+    x0, y0 = np.linalg.solve(A, b)
+    x0, y0 = int(np.round(x0)), int(np.round(y0))
+    return [[x0, y0]]
+
+
+def segmented_intersections(lines):
+    intersections = []
+    for i, group in enumerate(lines[:-1]):
+        for next_group in lines[i+1:]:
+            for line1 in group:
+                for line2 in next_group:
+                    intersections.append(intersection(line1, line2))
+
+    return intersections
 
 
 def hough_to_rect(rho, theta, length):
@@ -63,98 +98,119 @@ def get_intersection_point(rho1, theta1, rho2, theta2):
 
 
 def hough(img):
-    lines = cv2.HoughLines(img, 1, np.pi/360, 150,)
-    # lines = cv2.HoughLines(img, 1, np.pi/360, 160,
-    #                        min_theta=np.pi/12, max_theta=np.pi/3
-    #                        )
+    lines = cv2.HoughLines(img, 1, np.pi/360, 150,
+                           #    min_theta=np.pi/12, max_theta=np.pi/3,
+                           #    min_theta=-1*np.pi/3, max_theta=np.pi / 3
+                           )
 
-    # lines = cv2.HoughLinesP(img, 1, np.pi/180, 130, 30, 50)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    slopes = {}
     length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
 
+    if not lines.any():
+        return img
+
     strong_lines = [lines[0]]
+    main_lines = []
 
-    x_diffs = [lines[0][0]]
+    for line in lines:
+        rho, theta = line[0]
+        x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+        if x1 <= 0 and y1 <= 0 and x2 >= 0 and y2 >= 0:
+            if x2 < ceil(0.55 * img.shape[1]) or y2 < ceil(0.55*img.shape[0]):
+                continue
+        if x1 <= 0 and y1 >= 0 and x2 >= 0 and y2 >= 0:
+            if x2 < ceil(0.55 * img.shape[1]) or y2 < ceil(0.55*img.shape[0]):
+                continue
 
-    non_intersecting_lines = [lines[0]]
+        if x2 - x1 == 0:
+            continue
 
-    x_coords = [lines[0][0][0]]
+        s = (y2 - y1) / (x2 - x1)
+        if abs(s) > 10 or abs(s) < 0.01:
+            continue
 
-    for line in lines[1:]:
+        if -1*np.pi/3 <= theta <= np.pi/3 or (-1*np.pi/3 - np.pi/4) <= theta <= (np.pi/3 + np.pi/4):
+            main_lines.append(line)
+            continue
+
+        main_lines.append(line)
+
+    for line in main_lines[1:]:
         append_ = True
         for strong_line in strong_lines:
             strong_rho, strong_theta = strong_line[0]
             rho, theta = line[0]
-        # DIFF IN RHO, THETA
-        # if abs(strong_rho - rho) < 4 and abs(strong_theta - theta) < 2:
-        #     append_ = False
-        #     continue
 
-        # DIFF IN RECT COORDS
-        # strong_x1, strong_y1, strong_x2, strong_y2 = hough_to_rect(
-        #     strong_rho, strong_theta, length)
-        # x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-        # if abs(strong_x1 - x1) < 2.5 or abs(strong_x2 - x2) < 4:
-        #     append_ = False
-        #     continue
-        # x_diffs.append(abs(strong_x1 - x1))
+            # DIFF IN RECT COORDS
+            strong_x1, strong_y1, strong_x2, strong_y2 = hough_to_rect(
+                strong_rho, strong_theta, length)
+            x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
+            print('diff x1: ', abs(strong_x1 - x1))
+            print('diff x2: ', abs(strong_x2 - x2))
+            # if abs(strong_x1 - x1) < 2.5 or abs(strong_x2 - x2) < 4:
+            if abs(strong_x2 - x2) < 0.015 * np.sqrt(img.shape[0]**2 + img.shape[1] ** 2):
+                if abs(strong_x2 - x2) < 0.7 * np.sqrt(img.shape[0]):
+                    append_ = False
+                    continue
 
-        # INTERSECTING
-        # if abs(strong_theta) < np.pi/6:
-        #     continue
-        # if get_intersection_point(strong_rho, strong_theta, rho, theta):
-        #     append_ = False
-        #     continue
-
-        # CLOSE Xs
-        # strong_x1, strong_y1, strong_x2, strong_y2 = hough_to_rect(
-        #     strong_rho, strong_theta, length)
-        # rho, theta = line[0]
-        # x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-        # for x_coord in x_coords:
-        #     print(f"x_coord: {x_coord}")
-        #     print(f"x1: {x1}")
-        #     if abs(x1-x_coord) < 10:
-        #         append_ = False
-        #         continue
-        #     x_coords.append(x1)
         if append_:
             strong_lines.append(line)
-            # strong_lines.insert(0, line)
 
-    strong_lines = _fix_negative_rho_in_hesse_normal_form(lines)
-    for i, line in enumerate(strong_lines):
-        # for rho, theta in line:
-        for l in line:
-            rho, theta = l
-            # for x1, y1, x2, y2 in line:
+    segmented = segment_by_angle_kmeans(main_lines)
+    orientation_to_lines = {
+        'vert': segmented[1],
+        'horiz': segmented[0]
+    }
+    vert_outlier = min(segment_by_angle_kmeans(
+        segmented[1], k=2), key=len)[0]
+    horiz_outlier = min(segment_by_angle_kmeans(
+        segmented[0], k=2), key=len)[0]
+
+    for i, segmented_vert in enumerate(orientation_to_lines['vert']):
+        rho, theta = segmented_vert[0]
+        if rho == vert_outlier[0][0] and theta == vert_outlier[0][1]:
+            orientation_to_lines['vert'] = orientation_to_lines['vert'][:i] + \
+                orientation_to_lines['vert'][i+1:]
+
+    for i, segmented_horiz in enumerate(orientation_to_lines['horiz']):
+        rho, theta = segmented_horiz[0]
+        if rho == horiz_outlier[0][0] and theta == horiz_outlier[0][1]:
+            orientation_to_lines['horiz'] = orientation_to_lines['horiz'][:i] + \
+                orientation_to_lines['horiz'][i+1:]
+
+    for orientation in orientation_to_lines:
+        for segmented_line in orientation_to_lines[orientation]:
+            color = (0, 255, 0) if orientation == 'vert' else (0, 0, 255)
+            rho, theta = segmented_line[0]
             x1, y1, x2, y2 = hough_to_rect(rho, theta, length)
-            color = (0, 0, 255)
-            if x1 - x2 == 0 or x2 < ceil(0.25*img.shape[1]) or y1 < ceil(0.25*img.shape[0]) or x2 < ceil(0.25*img.shape[1]):
-                continue
-            s = ceil((y2 - y1) / (x2 - x1))
-            if s not in slopes:
-                slopes[s] = i
-            else:
-                # print(f'{i}, {slopes[s]} are duplicates')
-                cv2.line(img, (x1, y1), (x2, y2), color, 1)
-                cv2.putText(img,
-                            str(round(theta, 2)), (x2//4, y2//4), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.line(img, (x1, y1), (x2, y2), color, 1)
 
+    def by_midpoint(orientation='vert'):
+        def calc(line):
+            x_temp = line.reshape(-1)
+            x1, y1, x2, y2 = hough_to_rect(x_temp[0], x_temp[1], length)
+            if orientation == 'vert':
+                return (x1 + x2) // 2
+            return (y1 + y2) // 2
+
+        return calc
+
+    left = segmented_intersections(
+        [[min(orientation_to_lines['vert'], key=by_midpoint('vert'))], [
+            max(orientation_to_lines['horiz'], key=by_midpoint('horiz')),
+            min(orientation_to_lines['horiz'], key=by_midpoint('horiz'))]
+         ])
+    right = segmented_intersections(
+        [[max(orientation_to_lines['vert'], key=by_midpoint('vert'))], [
+            min(orientation_to_lines['horiz'], key=by_midpoint('horiz')),
+            max(orientation_to_lines['horiz'], key=by_midpoint('horiz'))]
+         ])
+
+    for intersection in left + right:
+        x, y = intersection[0]
+        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
     return img
 # cv2.imwrite('houghlines5.jpg',img)
-
-
-def sobel(img):
-    sobelx = cv2.Sobel(img, ddepth=cv2.CV_64F, dx=1, dy=0, ksize=5)
-    sobely = cv2.Sobel(img, ddepth=cv2.CV_64F, dx=0, dy=1, ksize=5)
-    sobelxy = cv2.Sobel(img, ddepth=cv2.CV_64F, dx=1, dy=1, ksize=5)
-    return sobelx, sobely, sobelxy
-
-    # cv2.imshow('Sobel X', sobelx)
-    # cv2.imshow('Sobel Y', sobely)
-    # cv2.imshow('Sobel XY', sobelxy)
 
 
 def floodfill(img):
@@ -167,55 +223,20 @@ def floodfill(img):
     return img
 
 
-def morph(img):
-    # ret1, binary_image = cv2.threshold(
-    #     img, 0, 150, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    # img = cv2.GaussianBlur(img, (3, 3), 0)
-    # binary_image = cv2.adaptiveThreshold(
-    #     blurred, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 8)
-    kernel = np.ones((5, 5), np.uint8)
-    # img = floodfill(img)
-    # img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
-    # img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    # img = cv2.dilate(img, kernel, iterations=1)
-    # img = cv2.erode(img, kernel, iterations=1)
-    # img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-
-    return img
-
-
-def get_contours(img):
-    contours = []
-    ret_contours, hierarchy = cv2.findContours(
-        img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    contours += ret_contours
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    # cv2.drawContours(img, contours, -1, (0, 255, 0), 2)
-    max_area_contour = max(contours, key=cv2.contourArea)
-    # for contour in contours:
-    rect = cv2.boundingRect(max_area_contour)
-    # box = cv2.boxPoints(rect)
-    # box = np.int0(box)
-    # cv2.drawContours(img, [box], 0, (0, 0, 255), 2)
-    # cv2.imshow('After drawing contours', img)
-    cv2.rectangle(img, rect, (0, 0, 255))
-    cv2.imshow('after drawing contours', img)
-    return rect
-
-
 without_magnus_white_shirt = 'without_magnus_white_shirt.png'
 chessboard = 'chessboard.png'
 boy_vs_man = 'boy_vs_man.png'
+initial_board = 'initial_board.png'
 initial1 = 'initial1.PNG'
+initial3 = 'initial3.png'
+initial4 = 'initial4.png'
 initial2 = 'initial2.png'
 
-img = cv2.imread(initial1)
-cv2.imshow('Before morph operations', img)
+img = cv2.imread(initial2)
+cv2.imshow('Initial', img)
 
-morphed_img = morph(img)
-cv2.imshow('After morph operations', morphed_img)
 
-canny_img = cv2.Canny(morphed_img, 200, 250, apertureSize=3)
+canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
 # canny_img = cv2.Canny(img, 200, 250, apertureSize=3)
 cv2.imshow('Canny', canny_img)
 img = hough(canny_img)

@@ -1,4 +1,4 @@
-# Part 2 report in part2report.md
+# [Part 2 report here](part2report.md)
 
 # Part 1 Deliverable
 ## Part A: Database

@@ -18,6 +18,8 @@ Next, we transform the polar coordinates to Cartesian coordinates. After obtaini
 4. Find corners of chessboard based on intersections.
 
 ## Images
+This first set of images show correct feature extraction.
+
 Initial image:
 ![Initial](report_images/initial.png)
 
@@ -35,3 +37,14 @@ Segmented lines:
 
 Corners:
 ![Corners](report_images/final.png)
+
+This second set of images show how non-chessboard lines can severely impact the line detection's performance, as the algorithm detects the lines in the plaid shirt of one of the spectators.
+
+![Initial](report_images/shirt_initial.png)
+
+Initial lines:
+![Initial lines](report_images/shirt_initial_lines.png)
+
+Corners:
+![Corners](report_images/shirt_final.png)
+

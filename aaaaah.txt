@@ -1,0 +1,11 @@
+lines = hough_to_rect(lines)
+lines = sort_by_x(lines)
+
+distances = []
+for line, next_line in lines:
+    distance = distance(line, next_line)
+
+distances = cluster(distances)
+avg_dist = average(max(distances, key=bin))
+
+new_line = right_most_line offset by avg_distance

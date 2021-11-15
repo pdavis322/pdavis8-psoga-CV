@@ -232,6 +232,7 @@ def main(args):
     draw_segmented_lines(segmented_lines_img, orientation_to_lines, length)
     cv2.imshow('Lines segmented by orientation', segmented_lines_img)
 
+    interpolate_vertical_lines(orientation_to_lines)
     # Corner processing
     corners = get_corners(orientation_to_lines, length)
     draw_corners(img, corners)

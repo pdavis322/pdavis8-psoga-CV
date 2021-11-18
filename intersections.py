@@ -2,6 +2,8 @@ import math
 import cv2
 import numpy as np
 import torch
+import chess
+import chess.svg
 from pprint import pprint
 from math import ceil
 from collections import defaultdict, Counter
@@ -305,24 +307,75 @@ def get_position(img, points, bbox_point):
     file, rank = 'a', '1'
     for i in range(7):
         if by_row[i][0][1] <= bbox_point[1] <= by_row[i + 1][-1][1]:
-            file = chr(ord('a') + i)
-       if by_column[i][-1][0] <= bbox_point[0] <= by_column[i + 1][0][0]:
-            rank = str(i + 1)
+            # file = chr(ord('a') + i)
+            file = i + 1
+        if by_column[i][-1][0] <= bbox_point[0] <= by_column[i + 1][0][0]:
+            # rank = str(i + 1)
+            rank = i + 1
 
     return file, rank
 
+
+def cls_to_tag(cls):
+    mapping = {
+        'white-rook': 'R',
+        'white-knight': 'N',
+        'white-bishop': 'B',
+        'white-king': 'K',
+        'white-queen': 'Q',
+        'white-pawn': 'P',
+        'black-pawn': 'p',
+        'black-rook': 'r',
+        'black-bishop': 'b',
+        'black-knight': 'n',
+        'black-king': 'k',
+        'black-queen': 'q'
+    }
+    return mapping[cls]
+
+
 def detect(original_img, img, points):
-    original_img = Image.open(original_img)    
-    print(get_position(img, points, (971, 528)))
-    '''
-    model = torch.hub.load('../yolov5', 'custom', path='best.pt', source='local', force_reload=True)
-    model.conf = 0.02
-    results = model(original_img, size=512)
-    for index, row in results.pandas().xyxy[0].iterrows():
-        print(row)
-        x = (row['xmin'] + row['xmax']) / 2
-        print(get_position(img, points, (x, row['ymax'])))
-    '''
+    original_img = Image.open(original_img)
+    # print(get_position(img, points, (971, 528)))
+    # model = torch.hub.load('../yolov5', 'custom',
+    #                        path='best.pt', source='local', force_reload=True)
+    # model.conf = 0.02
+    # results = model(original_img, size=512)
+    # keys = []
+    # for index, row in results.pandas().xyxy[0].iterrows():
+    #     print(row)
+    #     x = (row['xmin'] + row['xmax']) / 2
+    #     print(get_position(img, points, (x, row['ymax'])))
+    #     keys.append(
+    #         (get_position(img, points, (x, row['ymax'])), cls_to_tag(row['name'])))
+
+    keys = [(1, 1, 'n'), (5, 4, 'K'), (2, 3, 'k')]
+    board = [[""] * 8 for _ in range(8)]
+    for key in keys:
+        file, rank, char = key
+        board[file-1][rank-1] = char
+
+    # generate fen string
+    fen_string = ""
+    for i, row in enumerate(board):
+        num_blanks = 0
+        for j, char in enumerate(row):
+            if char == '' and j != len(row)-1:
+                num_blanks += 1
+                continue
+            if char == '' and j == len(row)-1:
+                num_blanks += 1
+            if num_blanks > 0:
+                fen_string += str(num_blanks)
+            fen_string += char
+            num_blanks = 0
+        fen_string += "/" if i != len(board)-1 else ''
+    board = chess.Board(fen_string)
+    chess.svg.board(board, size=350)
+
+    print(board)
+    print(fen_string)
+
 
 def main(args):
     file_path = args.file
@@ -398,7 +451,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--file', type=str, help='Chessboard file to process')
+    parser.add_argument('--file', type=str,
+                        help='Chessboard file to process')
     parser.add_argument('--output', type=str,
                         help='Output file location')
     args = parser.parse_args()

@@ -302,40 +302,6 @@ def get_position(bbox_point, by_row, by_column):
         if by_column[i][0][0] <= bbox_point[0] <= by_column[i][-1][0]:
             rank = chr(str(i+1))
 
-    # if by_row[0][0][1] <= bbox_point[1] <= by_row[1][-1][1]:
-    #     file = 'a'
-    # if by_row[1][0][1] <= bbox_point[1] <= by_row[2][-1][1]:
-    #     file = 'b'
-    # if by_row[2][0][1] <= bbox_point[1] <= by_row[3][-1][1]:
-    #     file = 'c'
-    # if by_row[3][0][1] <= bbox_point[1] <= by_row[4][-1][1]:
-    #     file = 'd'
-    # if by_row[4][0][1] <= bbox_point[1] <= by_row[5][-1][1]:
-    #     file = 'e'
-    # if by_row[5][0][1] <= bbox_point[1] <= by_row[6][-1][1]:
-    #     file = 'f'
-    # if by_row[6][0][1] <= bbox_point[1] <= by_row[7][-1][1]:
-    #     file = 'g'
-    # if by_row[7][0][1] <= bbox_point[1] <= by_row[8][-1][1]:
-    #     file = 'h'
-
-    # if by_column[0][0][0] <= bbox_point[0] <= by_column[1][-1][0]:
-    #     file = '1'
-    # if by_column[1][0][0] <= bbox_point[0] <= by_column[2][-1][0]:
-    #     file = '2'
-    # if by_column[2][0][0] <= bbox_point[0] <= by_column[3][-1][0]:
-    #     file = '3'
-    # if by_column[3][0][0] <= bbox_point[0] <= by_column[4][-1][0]:
-    #     file = '4'
-    # if by_column[4][0][0] <= bbox_point[0] <= by_column[5][-1][0]:
-    #     file = '5'
-    # if by_column[5][0][0] <= bbox_point[0] <= by_column[6][-1][0]:
-    #     file = '6'
-    # if by_column[6][0][0] <= bbox_point[0] <= by_column[7][-1][0]:
-    #     file = '7'
-    # if by_column[7][0][0] <= bbox_point[0] <= by_column[8][-1][0]:
-    #     file = '8'
-
     return file, rank
 
 

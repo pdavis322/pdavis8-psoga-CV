@@ -1,10 +1,12 @@
 import math
 import cv2
 import numpy as np
+import torch
 from pprint import pprint
 from math import ceil
 from collections import defaultdict, Counter
 from argparse import ArgumentParser
+from PIL import Image
 
 
 # Segment_by_angle_kmeans, intersection, and segmented_intersections with assistance from Stack Overflow
@@ -286,24 +288,41 @@ def configure_board(img, points):
     for i, chunk in enumerate(by_row):
         for j, c in enumerate(chunk):
             x, y = c
-            cv2.putText(img, str(j), (x, y), fontFace=cv2.FONT_HERSHEY_COMPLEX,
-                        fontScale=1.0, color=(255, 255, 0), thickness=2)
-            cv2.circle(img, (x, y), radius=2,
+            cv2.circle(img, (x + 20, y + 20), radius=2,
                        color=(255, 0, 0), thickness=3)
-            by_column.append((x, y))
+    for i, chunk in enumerate(by_row):
+        by_column.append([])
+        for j, c in enumerate(chunk):
+            x, y = c
+            cv2.circle(img, (x, y), radius=2,
+                       color=(0, 255, 0), thickness=3)
+            by_column[-1].append(by_row[j][i])
     return by_row, by_column
 
 
-def get_position(bbox_point, by_row, by_column):
-    file, rank = '', ''
-    for i in range(8):
-        if by_row[i][0][1] <= bbox_point[1] <= by_row[i][-1][1]:
-            file = chr(97 + i)
-        if by_column[i][0][0] <= bbox_point[0] <= by_column[i][-1][0]:
-            rank = chr(str(i+1))
+def get_position(img, points, bbox_point):
+    by_row, by_column = configure_board(img, points)
+    file, rank = 'a', '1'
+    for i in range(7):
+        if by_row[i][0][1] <= bbox_point[1] <= by_row[i + 1][-1][1]:
+            file = chr(ord('a') + i)
+       if by_column[i][-1][0] <= bbox_point[0] <= by_column[i + 1][0][0]:
+            rank = str(i + 1)
 
     return file, rank
 
+def detect(original_img, img, points):
+    original_img = Image.open(original_img)    
+    print(get_position(img, points, (971, 528)))
+    '''
+    model = torch.hub.load('../yolov5', 'custom', path='best.pt', source='local', force_reload=True)
+    model.conf = 0.02
+    results = model(original_img, size=512)
+    for index, row in results.pandas().xyxy[0].iterrows():
+        print(row)
+        x = (row['xmin'] + row['xmax']) / 2
+        print(get_position(img, points, (x, row['ymax'])))
+    '''
 
 def main(args):
     file_path = args.file
@@ -366,8 +385,12 @@ def main(args):
 
     cv2.imshow('After processing', img)
 
+    # Detect pieces
+    detect(file_path, img, points)
+
     while True:
         k = cv2.waitKey(0)
+        # 27: esc
         if k == 27:
             cv2.destroyAllWindows()
             exit()

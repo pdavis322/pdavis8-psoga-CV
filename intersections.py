@@ -199,9 +199,11 @@ def get_all_intersections(orientation_to_lines, length):
 
     # Left intersection points = intersection of smallest-x vertical with the extreme horizontal
     #   lines; right intersection points are symmetric
-    print([*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
-    line_intersections = segmented_intersections(
-        [*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
+    # print([*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
+    # line_intersections = segmented_intersections(
+    #     [*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
+    line_intersections = segmented_intersections_with_dict(
+        lines=[orientation_to_lines['vert'], orientation_to_lines['horiz']])
 
     return line_intersections
 
@@ -216,19 +218,23 @@ def draw_lines(img, lines, length):
 
 def draw_corners(img, corners):
     for corner in corners:
-        x, y = corner[0]
-        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
+        x, y = corner
+        cv2.circle(img, (int(x), int(y)), radius=2,
+                   color=(255, 0, 0), thickness=3)
 
 
-def draw_numbered_corners(img, lines_dict):
+def draw_numbered_corners(img, points):
     # print(lines_dict)
-    lines_dict = lines_dict[1]
-    for line in lines_dict:
-        for i, corner in enumerate(lines_dict[line]):
-            cv2.putText(img, str(
-                i), (corner[0][0], corner[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
-            cv2.circle(img, (corner[0][0], corner[0][1]), radius=2, color=(
-                255 - i * 1.5, 0, 0), thickness=3)
+    for point in points:
+        cv2.circle(img, (point[0], point[1]), radius=2, color=(
+            255, 0, 0), thickness=3)
+    # lines_dict = lines_dict[1]
+    # for line in lines_dict:
+    #     for i, corner in enumerate(lines_dict[line]):
+    #         cv2.putText(img, str(
+    #             i), (corner[0][0], corner[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+    #         cv2.circle(img, (corner[0][0], corner[0][1]), radius=2, color=(
+    #             255 - i * 1.5, 0, 0), thickness=3)
 
     '''
     for i, corner in enumerate(corners):
@@ -248,9 +254,23 @@ def draw_segmented_lines(img, orientation_to_lines, length):
             cv2.line(img, (x1, y1), (x2, y2), color, 1)
 
 
-def process_corners(corners):
-    # print(corners)
-    pass
+def process_points(points):
+    criteria = (cv2.TERM_CRITERIA_EPS, 100, 0.5)
+    flags = cv2.KMEANS_PP_CENTERS
+
+    points = [np.array([x[0], x[1]]) for x in points]
+
+    _, labels, centers = cv2.kmeans(
+        data=np.array(points, dtype=np.float32), K=81, bestLabels=None, criteria=criteria, attempts=100, flags=flags)
+    new_points = set()
+    clusters = set()
+    for i, point in enumerate(points):
+        if labels[i][0] in clusters:
+            continue
+        clusters.add(labels[i][0])
+        x, y = point
+        new_points.add((x, y))
+    return new_points
 
 
 def interpolate_vertical_intersections(orientation_to_lines, length, intersections):
@@ -273,10 +293,10 @@ def interpolate_vertical_intersections(orientation_to_lines, length, intersectio
     mode_average_dist = centers[max_label][0]
 
     intersections_by_vert = intersections[1]
-    right_most_intersections = max(
+    right_most_lines = max(
         intersections_by_vert.keys(), key=lambda x: x[0])
     new_points = list(
-        map(lambda x: [int(x[0][0] - (mode_average_dist // 3)), int(x[0][1])], intersections_by_vert[right_most_intersections]))
+        map(lambda x: [int(x[0][0] - (mode_average_dist // 3)), int(x[0][1])], intersections_by_vert[right_most_lines]))
 
     return new_points
 
@@ -319,11 +339,18 @@ def main(args):
     # draw_corners(img, corners)
 
     all_intersections = get_all_intersections(orientation_to_lines, length)
-    print(all_intersections)
+    points = set()
+    for l in list(all_intersections[1].values()):
+        for ls in l:
+            x, y = ls[0]
+            points.add((x, y))
+
     new_vertical_intersections = interpolate_vertical_intersections(
         orientation_to_lines, length, all_intersections)
-    draw_numbered_corners(img, all_intersections)
-    process_corners(all_intersections)
+
+    points.update([(x, y) for x, y in new_vertical_intersections])
+    points = process_points(points)
+    draw_corners(img, points)
 
     # Final drawing
     draw_segmented_lines(img, orientation_to_lines, length)

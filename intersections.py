@@ -304,7 +304,7 @@ def configure_board(img, points):
 
 def get_position(img, points, bbox_point):
     by_row, by_column = configure_board(img, points)
-    file, rank = 'a', '1'
+    file, rank = 1, 1
     for i in range(7):
         if by_row[i][0][1] <= bbox_point[1] <= by_row[i + 1][-1][1]:
             # file = chr(ord('a') + i)
@@ -337,19 +337,19 @@ def cls_to_tag(cls):
 def detect(original_img, img, points):
     original_img = Image.open(original_img)
     # print(get_position(img, points, (971, 528)))
-    # model = torch.hub.load('../yolov5', 'custom',
-    #                        path='best.pt', source='local', force_reload=True)
-    # model.conf = 0.02
-    # results = model(original_img, size=512)
-    # keys = []
-    # for index, row in results.pandas().xyxy[0].iterrows():
-    #     print(row)
-    #     x = (row['xmin'] + row['xmax']) / 2
-    #     print(get_position(img, points, (x, row['ymax'])))
-    #     keys.append(
-    #         (get_position(img, points, (x, row['ymax'])), cls_to_tag(row['name'])))
+    model = torch.hub.load('../yolov5', 'custom',
+                           path='best.pt', source='local', force_reload=True)
+    model.conf = 0.02
+    results = model(original_img, size=512)
+    keys = []
+    for index, row in results.pandas().xyxy[0].iterrows():
+        print(row)
+        x = (row['xmin'] + row['xmax']) / 2
+        print(get_position(img, points, (x, row['ymax'])))
+        x, y = get_position(img, points, (x, row['ymax']))
+        keys.append(
+            (int(x), int(y), cls_to_tag(row['name'])))
 
-    keys = [(1, 1, 'n'), (5, 4, 'K'), (2, 3, 'k')]
     board = [[""] * 8 for _ in range(8)]
     for key in keys:
         file, rank, char = key

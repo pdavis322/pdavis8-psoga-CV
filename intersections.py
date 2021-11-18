@@ -1,5 +1,7 @@
+import math
 import cv2
 import numpy as np
+from pprint import pprint
 from math import ceil
 from collections import defaultdict, Counter
 from argparse import ArgumentParser
@@ -199,9 +201,6 @@ def get_all_intersections(orientation_to_lines, length):
 
     # Left intersection points = intersection of smallest-x vertical with the extreme horizontal
     #   lines; right intersection points are symmetric
-    # print([*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
-    # line_intersections = segmented_intersections(
-    #     [*orientation_to_lines['vert'], *orientation_to_lines['horiz']])
     line_intersections = segmented_intersections_with_dict(
         lines=[orientation_to_lines['vert'], orientation_to_lines['horiz']])
 
@@ -221,28 +220,6 @@ def draw_corners(img, corners):
         x, y = corner
         cv2.circle(img, (int(x), int(y)), radius=2,
                    color=(255, 0, 0), thickness=3)
-
-
-def draw_numbered_corners(img, points):
-    # print(lines_dict)
-    for point in points:
-        cv2.circle(img, (point[0], point[1]), radius=2, color=(
-            255, 0, 0), thickness=3)
-    # lines_dict = lines_dict[1]
-    # for line in lines_dict:
-    #     for i, corner in enumerate(lines_dict[line]):
-    #         cv2.putText(img, str(
-    #             i), (corner[0][0], corner[0][1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
-    #         cv2.circle(img, (corner[0][0], corner[0][1]), radius=2, color=(
-    #             255 - i * 1.5, 0, 0), thickness=3)
-
-    '''
-    for i, corner in enumerate(corners):
-        x, y = corner[0]
-        cv2.putText(img, str(i), (x, y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
-        cv2.circle(img, (x, y), radius=5, color=(255, 0, 0), thickness=3)
-        '''
 
 
 def draw_segmented_lines(img, orientation_to_lines, length):
@@ -296,9 +273,70 @@ def interpolate_vertical_intersections(orientation_to_lines, length, intersectio
     right_most_lines = max(
         intersections_by_vert.keys(), key=lambda x: x[0])
     new_points = list(
-        map(lambda x: [int(x[0][0] - (mode_average_dist // 3)), int(x[0][1])], intersections_by_vert[right_most_lines]))
+        map(lambda x: [int(x[0][0] - (mode_average_dist // 3)), int(x[0][1] - math.log(mode_average_dist // 3))], intersections_by_vert[right_most_lines]))
 
     return new_points
+
+
+def configure_board(img, points):
+    sorted_by_y = sorted(points, key=lambda x: x[1])
+    by_row = [sorted(sorted_by_y[i:i + 9], key=lambda x: x[0])
+              for i in range(0, len(sorted_by_y), 9)]
+    by_column = []
+    for i, chunk in enumerate(by_row):
+        for j, c in enumerate(chunk):
+            x, y = c
+            cv2.putText(img, str(j), (x, y), fontFace=cv2.FONT_HERSHEY_COMPLEX,
+                        fontScale=1.0, color=(255, 255, 0), thickness=2)
+            cv2.circle(img, (x, y), radius=2,
+                       color=(255, 0, 0), thickness=3)
+            by_column.append((x, y))
+    return by_row, by_column
+
+
+def get_position(bbox_point, by_row, by_column):
+    file, rank = '', ''
+    for i in range(8):
+        if by_row[i][0][1] <= bbox_point[1] <= by_row[i][-1][1]:
+            file = chr(97 + i)
+        if by_column[i][0][0] <= bbox_point[0] <= by_column[i][-1][0]:
+            rank = chr(str(i+1))
+
+    # if by_row[0][0][1] <= bbox_point[1] <= by_row[1][-1][1]:
+    #     file = 'a'
+    # if by_row[1][0][1] <= bbox_point[1] <= by_row[2][-1][1]:
+    #     file = 'b'
+    # if by_row[2][0][1] <= bbox_point[1] <= by_row[3][-1][1]:
+    #     file = 'c'
+    # if by_row[3][0][1] <= bbox_point[1] <= by_row[4][-1][1]:
+    #     file = 'd'
+    # if by_row[4][0][1] <= bbox_point[1] <= by_row[5][-1][1]:
+    #     file = 'e'
+    # if by_row[5][0][1] <= bbox_point[1] <= by_row[6][-1][1]:
+    #     file = 'f'
+    # if by_row[6][0][1] <= bbox_point[1] <= by_row[7][-1][1]:
+    #     file = 'g'
+    # if by_row[7][0][1] <= bbox_point[1] <= by_row[8][-1][1]:
+    #     file = 'h'
+
+    # if by_column[0][0][0] <= bbox_point[0] <= by_column[1][-1][0]:
+    #     file = '1'
+    # if by_column[1][0][0] <= bbox_point[0] <= by_column[2][-1][0]:
+    #     file = '2'
+    # if by_column[2][0][0] <= bbox_point[0] <= by_column[3][-1][0]:
+    #     file = '3'
+    # if by_column[3][0][0] <= bbox_point[0] <= by_column[4][-1][0]:
+    #     file = '4'
+    # if by_column[4][0][0] <= bbox_point[0] <= by_column[5][-1][0]:
+    #     file = '5'
+    # if by_column[5][0][0] <= bbox_point[0] <= by_column[6][-1][0]:
+    #     file = '6'
+    # if by_column[6][0][0] <= bbox_point[0] <= by_column[7][-1][0]:
+    #     file = '7'
+    # if by_column[7][0][0] <= bbox_point[0] <= by_column[8][-1][0]:
+    #     file = '8'
+
+    return file, rank
 
 
 def main(args):
@@ -351,6 +389,8 @@ def main(args):
     points.update([(x, y) for x, y in new_vertical_intersections])
     points = process_points(points)
     draw_corners(img, points)
+
+    print(configure_board(img, points))
 
     # Final drawing
     draw_segmented_lines(img, orientation_to_lines, length)

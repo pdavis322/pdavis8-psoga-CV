@@ -1,11 +1,5 @@
-lines = hough_to_rect(lines)
-lines = sort_by_x(lines)
+points = sort_by_y(points)
+points = partition_9x9(points)
+for point_arr in points:
+    sort_by_x(point_arr)
 
-distances = []
-for line, next_line in lines:
-    distance = distance(line, next_line)
-
-distances = cluster(distances)
-avg_dist = average(max(distances, key=bin))
-
-new_line = right_most_line offset by avg_distance

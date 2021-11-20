@@ -337,9 +337,9 @@ def cls_to_tag(cls):
 def detect(original_img, img, points):
     original_img = Image.open(original_img)
     # print(get_position(img, points, (971, 528)))
-    model = torch.hub.load('../yolov5', 'custom',
-                           path='best.pt', source='local', force_reload=True)
-    model.conf = 0.02
+    model = torch.hub.load('ultralytics/yolov5', 'custom',
+                           path='best.pt')
+    model.conf = 0.25
     results = model(original_img, size=512)
     keys = []
     for index, row in results.pandas().xyxy[0].iterrows():

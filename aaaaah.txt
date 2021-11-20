@@ -1,5 +1,0 @@
-points = sort_by_y(points)
-points = partition_9x9(points)
-for point_arr in points:
-    sort_by_x(point_arr)
-

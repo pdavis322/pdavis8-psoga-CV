@@ -1,3 +1,5 @@
+# [Part 3 report here](part3report.md)
+
 # [Part 2 report here](part2report.md)
 
 # Part 1 Deliverable

@@ -369,6 +369,7 @@ def detect(original_img, img, points):
             num_blanks = 0
         fen_string += "/" if i != len(board)-1 else ''
     board = chess.Board(fen_string)
+    print(fen_string)
     print(board)
     chess.svg.board(board, size=350)
 

@@ -4,6 +4,7 @@ cachetools==4.2.4
 certifi==2021.5.30
 cffi @ file:///tmp/build/80754af9/cffi_1625814692085/work
 chardet @ file:///tmp/build/80754af9/chardet_1607706775000/work
+chess==1.7.0
 conda==4.10.3
 conda-package-handling @ file:///tmp/build/80754af9/conda-package-handling_1618262147379/work
 cryptography @ file:///tmp/build/80754af9/cryptography_1616767007030/work

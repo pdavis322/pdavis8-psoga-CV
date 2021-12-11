@@ -343,9 +343,7 @@ def detect(original_img, img, points):
     results = model(original_img, size=512)
     keys = []
     for index, row in results.pandas().xyxy[0].iterrows():
-        print(row)
         x = (row['xmin'] + row['xmax']) / 2
-        print(get_position(img, points, (x, row['ymax'])))
         x, y = get_position(img, points, (x, row['ymax']))
         keys.append(
             (int(x), int(y), cls_to_tag(row['name'])))
@@ -371,18 +369,18 @@ def detect(original_img, img, points):
             num_blanks = 0
         fen_string += "/" if i != len(board)-1 else ''
     board = chess.Board(fen_string)
+    print(fen_string)
+    print(board)
     chess.svg.board(board, size=350)
 
 
 def main(args):
-    file_path = args.file
+    file_path = 'data/initial2.png'
     output_path = args.output if args.output else None
 
     img = cv2.imread(file_path)
-    cv2.imshow('Initial', img)
 
     img = cv2.Canny(img, 200, 250, apertureSize=3)
-    cv2.imshow('Canny', img)
 
     length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
 
@@ -394,18 +392,15 @@ def main(args):
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     lines_img = img.copy()
     draw_lines(lines_img, lines, length)
-    cv2.imshow('Initial lines', lines_img)
 
     # Line processing
     filtered_lines = filter_lines(img, lines, length)
     filtered_line_img = img.copy()
     draw_lines(filtered_line_img, filtered_lines, length)
-    cv2.imshow('Filtered lines', filtered_line_img)
 
     orientation_to_lines = process_lines(filtered_lines)
     segmented_lines_img = img.copy()
     draw_segmented_lines(segmented_lines_img, orientation_to_lines, length)
-    cv2.imshow('Lines segmented by orientation', segmented_lines_img)
 
     # Corner processing
     # corners = get_corners(orientation_to_lines, length)
@@ -425,25 +420,16 @@ def main(args):
     points = process_points(points)
     draw_corners(img, points)
 
-    print(configure_board(img, points))
 
     # Final drawing
     draw_segmented_lines(img, orientation_to_lines, length)
     if output_path:
-        print(output_path)
         cv2.imwrite(output_path, img)
 
-    cv2.imshow('After processing', img)
 
     # Detect pieces
     detect(file_path, img, points)
 
-    while True:
-        k = cv2.waitKey(0)
-        # 27: esc
-        if k == 27:
-            cv2.destroyAllWindows()
-            exit()
 
 
 if __name__ == "__main__":

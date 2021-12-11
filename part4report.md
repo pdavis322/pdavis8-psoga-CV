@@ -19,10 +19,9 @@ Our presentation can be viewed here: https://docs.google.com/presentation/d/1GcJ
 
 ## Part C: Instructions
 
-In order to run our code, clone the repository and enter the following commands:
+In order to run our code, clone the repository and enter the following command. The program requires opencv-python, numpy, pandas, Pillow, chess, and torch. 
 
 ```
-pip install requirements.txt
 python3 driver.py
 ```
 

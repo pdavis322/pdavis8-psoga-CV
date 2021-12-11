@@ -1,4 +1,4 @@
 ## Part A: Test Dataset
 For our testing dataset, we augmented the original videos we used to train the model with four additional videos taken at different angles. We used around 60 images per video taken throughout the duration of each video for a total of roughly 240 new images. 
-As an example of the differences between our testing set and our training set, this first image is taken from our training set:![Mamedyarov-Carlsen_mp4-57_jpg rf 2201c14ce844f3801a8a5159a6358bbb](https://user-images.githubusercontent.com/26099766/145692373-243ea9ca-4f63-488a-ae7b-4a23b27a9cc6.jpg)
-This second image is taken from our testing set:![yt5s_com-Karjakin-Gelfand--World-Blitz-Championship-2012_mp4-18_jpg rf c32cd1dd6960fa36dfa2fe02f36e793b](https://user-images.githubusercontent.com/26099766/145692425-58143210-a588-4f55-82a4-ac6941f125e4.jpg)
+As an example of the differences between our testing set and our training set, this first image is taken from our training set:
+![image](https://user-images.githubusercontent.com/26099766/145692465-4ba91862-425e-492a-b565-62d304968aed.png)

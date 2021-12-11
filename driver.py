@@ -336,11 +336,10 @@ def cls_to_tag(cls):
 
 def detect(original_img, img, points):
     original_img = Image.open(original_img)
-    # print(get_position(img, points, (971, 528)))
     model = torch.hub.load('ultralytics/yolov5', 'custom',
                            path='best.pt')
-    model.conf = 0.25
-    results = model(original_img, size=512)
+    model.conf = 0.05
+    results = model(original_img)
     keys = []
     for index, row in results.pandas().xyxy[0].iterrows():
         print(row)
@@ -370,7 +369,9 @@ def detect(original_img, img, points):
             fen_string += char
             num_blanks = 0
         fen_string += "/" if i != len(board)-1 else ''
+    print(fen_string)
     board = chess.Board(fen_string)
+    print(board)
     chess.svg.board(board, size=350)
 
 

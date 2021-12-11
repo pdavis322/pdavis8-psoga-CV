@@ -12,3 +12,8 @@ While the model still generally performs well on most pieces, it performs much w
 
 ## Part B: Presentation
 Our presentation can be viewed here: https://docs.google.com/presentation/d/1GcJY5jhG46cwS6tUYZgUOAMyr-Ycm9ArT-L9O_G0-GQ/edit?usp=sharing
+
+## Part C: Instructions
+In order to run our code, clone the repository, and enter the following commands:
+  pip install requirements.txt
+  python3 driver.py

@@ -378,7 +378,6 @@ def main(args):
     output_path = args.output if args.output else None
 
     img = cv2.imread(file_path)
-    cv2.imshow('Initial', img)
 
     img = cv2.Canny(img, 200, 250, apertureSize=3)
 
@@ -426,7 +425,6 @@ def main(args):
     if output_path:
         cv2.imwrite(output_path, img)
 
-    cv2.imshow('After processing', img)
 
     # Detect pieces
     detect(file_path, img, points)

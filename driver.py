@@ -6,7 +6,6 @@ import chess
 import chess.svg
 from math import ceil
 from collections import defaultdict, Counter
-from argparse import ArgumentParser
 from PIL import Image
 
 
@@ -241,7 +240,7 @@ def process_points(points):
     points = [np.array([x[0], x[1]]) for x in points]
 
     _, labels, centers = cv2.kmeans(
-        data=np.array(points, dtype=np.float32), K=81, bestLabels=None, criteria=criteria, attempts=100, flags=flags)
+        data=np.array(points, dtype=np.float32), K=81 if len(points) >= 81 else len(points), bestLabels=None, criteria=criteria, attempts=100, flags=flags)
     new_points = set()
     clusters = set()
     for i, point in enumerate(points):
@@ -297,7 +296,10 @@ def configure_board(img, points):
             x, y = c
             cv2.circle(img, (x, y), radius=2,
                        color=(0, 255, 0), thickness=3)
-            by_column[-1].append(by_row[j][i])
+            try:
+                by_column[-1].append(by_row[j][i])
+            except IndexError:
+                pass
     return by_row, by_column
 
 
@@ -370,14 +372,10 @@ def detect(original_img, img, points):
     chess.svg.board(board, size=350)
 
 
-def main(args):
-    file_path = 'data/initial2.png'
-    output_path = args.output if args.output else None
-
+def main():
+    file_path = 'data/test.png'
     img = cv2.imread(file_path)
-
     img = cv2.Canny(img, 200, 250, apertureSize=3)
-
     length = np.sqrt(img.shape[0]**2 + img.shape[1]**2)
 
     # Hough transform
@@ -422,8 +420,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument('--file', type=str,
-                        help='Chessboard file to process')
-    args = parser.parse_args()
-    main(args)
+    main()

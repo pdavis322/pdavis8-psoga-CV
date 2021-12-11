@@ -4,3 +4,5 @@ As an example of the differences between our testing set and our training set, t
 ![image](https://user-images.githubusercontent.com/26099766/145692465-4ba91862-425e-492a-b565-62d304968aed.png)
 This second image is taken from the additional videos we added to our testing set:
 ![image](https://user-images.githubusercontent.com/26099766/145692503-ceb2e7f1-a0d7-429c-9b33-f88608ffa0b7.png)
+
+The angle of the board in the test image is different from the training image, which means that certain pieces appear differently. For example, the white knight 

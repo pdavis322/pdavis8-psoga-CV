@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import chess
 import chess.svg
-from pprint import pprint
 from math import ceil
 from collections import defaultdict, Counter
 from argparse import ArgumentParser
@@ -307,10 +306,8 @@ def get_position(img, points, bbox_point):
     file, rank = 1, 1
     for i in range(7):
         if by_row[i][0][1] <= bbox_point[1] <= by_row[i + 1][-1][1]:
-            # file = chr(ord('a') + i)
             file = i + 1
         if by_column[i][-1][0] <= bbox_point[0] <= by_column[i + 1][0][0]:
-            # rank = str(i + 1)
             rank = i + 1
 
     return file, rank
@@ -336,10 +333,9 @@ def cls_to_tag(cls):
 
 def detect(original_img, img, points):
     original_img = Image.open(original_img)
-    # print(get_position(img, points, (971, 528)))
     model = torch.hub.load('ultralytics/yolov5', 'custom',
                            path='best.pt')
-    model.conf = 0.25
+    model.conf = 0.05
     results = model(original_img, size=512)
     keys = []
     for index, row in results.pandas().xyxy[0].iterrows():
@@ -403,8 +399,6 @@ def main(args):
     draw_segmented_lines(segmented_lines_img, orientation_to_lines, length)
 
     # Corner processing
-    # corners = get_corners(orientation_to_lines, length)
-    # draw_corners(img, corners)
 
     all_intersections = get_all_intersections(orientation_to_lines, length)
     points = set()
@@ -420,23 +414,16 @@ def main(args):
     points = process_points(points)
     draw_corners(img, points)
 
-
     # Final drawing
     draw_segmented_lines(img, orientation_to_lines, length)
-    if output_path:
-        cv2.imwrite(output_path, img)
-
 
     # Detect pieces
     detect(file_path, img, points)
-
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--file', type=str,
                         help='Chessboard file to process')
-    parser.add_argument('--output', type=str,
-                        help='Output file location')
     args = parser.parse_args()
     main(args)

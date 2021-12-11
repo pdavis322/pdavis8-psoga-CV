@@ -429,12 +429,6 @@ def main(args):
     # Detect pieces
     detect(file_path, img, points)
 
-    while True:
-        k = cv2.waitKey(0)
-        # 27: esc
-        if k == 27:
-            cv2.destroyAllWindows()
-            exit()
 
 
 if __name__ == "__main__":
